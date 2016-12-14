@@ -1,7 +1,7 @@
 Usage
 -----
 
-This is a simple wrapper around pexpect... Standard usage 
+This is a simple wrapper around pexpect... Standard usage ::
 
     from clijockey.lib import CLIMachine
     from clijockey.util import Account
