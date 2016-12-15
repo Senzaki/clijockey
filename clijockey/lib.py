@@ -1,5 +1,6 @@
 #
-#   Copyright 2016 "David Michael Pennington" <mike@pennington.net>
+#   "David Michael Pennington" <mike@pennington.net>
+#   Copyright 2016
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -14,25 +15,37 @@
 #   limitations under the License.
 
 from contextlib import closing
+import logging
 import socket
 import time
 import sys
 import os
 
 from error import ConnectionFailedError, AuthenticationFailedError
+from error import ResponseFailException, UnexpectedConnectionClose
 from util import Account
 import pdb
 
 from transitions import Machine
+from colorama import Fore, Style
 import pexpect
 
-"""
+_log = logging.getLogger(__file__)
+_CLIJOCKEY_LOG_FORMAT_PREFIX_STR = (
+    Fore.WHITE + '[%(module)s %(funcName)s] %(asctime)s ')
+_CLIJOCKEY_LOG_FORMAT_MSG_STR = (Fore.GREEN + '%(msg)s' + Fore.RESET)
+_CLIJOCKEY_LOG_FORMAT_STR = _CLIJOCKEY_LOG_FORMAT_PREFIX_STR + _CLIJOCKEY_LOG_FORMAT_MSG_STR
+_clijockey_log_format = logging.Formatter(_CLIJOCKEY_LOG_FORMAT_STR, '%H:%M:%S')
+_log.setLevel(logging.DEBUG)
+_LOG_CHANNEL_STDOUT = logging.StreamHandler(sys.stdout)
+_LOG_CHANNEL_STDOUT.setFormatter(_clijockey_log_format)
+_log.addHandler(_LOG_CHANNEL_STDOUT)
 
-"""
 
 class CLIMachine(Machine):
     def __init__(self, host, credentials, protocols=('ssh', 'telnet',), 
-        auto_priv_mode=True, check_alive=True, log_screen=False):
+        auto_priv_mode=True, check_alive=True, log_screen=False, debug=False,
+        command_timeout=30, login_timeout=15):
         STATES = [
             'INIT', 'CHECK_ALIVE', 
             'ITER_CREDENTIALS', 'SEND_USERNAME', 'SEND_CREDENTIALS', 
@@ -42,12 +55,21 @@ class CLIMachine(Machine):
         ]
         super(CLIMachine, self).__init__(states=STATES, initial='INIT')
         assert isinstance(credentials, tuple) or isinstance(credentials, list)
+        for acct in credentials:
+            assert isinstance(acct, Account), "Accounts must be created with clijockey.util.Account()"
+        assert isinstance(command_timeout, int), "command_timeout must be a positive integer"
+        assert isinstance(login_timeout, int), "login_timeout must be a positive integer"
+        assert command_timeout > 0, "command_timeout must be a positive integer"
+        assert login_timeout > 0, "login_timeout must be a positive integer"
 
         self.host = host
         self.credentials = credentials
         self.auto_priv_mode = auto_priv_mode
         self.check_alive = check_alive
         self.log_screen = log_screen
+        self.debug = debug
+        self.command_timeout = command_timeout
+        self.login_timeout = login_timeout
         self.child = None
         self.account = None
 
@@ -76,18 +98,12 @@ class CLIMachine(Machine):
             'LOGIN_SUCCESS_PRIV', after='after_login_success_priv_cb')
         self.add_transition('_go_interact', 'CONNECT', 
             'INTERACT', after='after_interact_cb')
-        self.add_transition('_go_send_username', 'SEND_CREDENTIALS', 
-            'SEND_USERNAME', after='after_send_username_cb')
         self.add_transition('_go_send_credentials', 'SEND_USERNAME', 
             'SEND_CREDENTIALS', after='after_send_credentials_cb')
         self.add_transition('_go_interact', 'SEND_USERNAME', 
             'INTERACT', after='after_interact_cb')
-        self.add_transition('_go_terminate_session', 'SEND_USERNAME', 
-            'TERMINATE_SESSION', after='after_terminate_session_cb')
         self.add_transition('_go_login_fail', 'SEND_CREDENTIALS', 
             'LOGIN_FAIL', after='after_login_fail_cb')
-        self.add_transition('_go_iter_credentials', 'LOGIN_FAIL', 
-            'ITER_CREDENTIALS', after='after_iter_credentials_cb')
         self.add_transition('_go_login_fail', 'SEND_CREDENTIALS', 
             'TERMINATE_SESSION', after='after_terminate_session_cb')
         self.add_transition('_go_login_success_nopriv', 'SEND_CREDENTIALS', 
@@ -96,14 +112,16 @@ class CLIMachine(Machine):
             'LOGIN_SUCCESS_PRIV', after='after_login_success_priv_cb')
         self.add_transition('_go_login_success_priv', 'LOGIN_SUCCESS_NOPRIV', 
             'LOGIN_SUCCESS_PRIV', after='after_login_success_priv_cb')
+        self.add_transition('_go_interact', 'LOGIN_SUCCESS_NOPRIV', 
+            'INTERACT', after='after_interact_cb')
         self.add_transition('_go_iter_enable_credentials', 'LOGIN_SUCCESS_NOPRIV', 
             'ITER_ENABLE_CREDENTIALS', after='after_iter_enable_credentials_cb')
         self.add_transition('_go_login_success_priv', 'ITER_ENABLE_CREDENTIALS',
             'LOGIN_SUCCESS_NOPRIV', after='after_login_success_nopriv_cb')
-        self.add_transition('_go_interact', 'LOGIN_SUCCESS_NOPRIV', 
-            'INTERACT', after='after_interact_cb')
         self.add_transition('_go_interact', 'LOGIN_SUCCESS_PRIV', 
             'INTERACT', after='after_interact_cb')
+        self.add_transition('_go_iter_credentials', 'LOGIN_FAIL', 
+            'ITER_CREDENTIALS', after='after_iter_credentials_cb')
         self.add_transition('_go_terminate_cli', 'INTERACT', 
             'TERMINATE_CLI', after='after_terminate_cli_cb')
         self.add_transition('_go_interact_timeout', 'INTERACT', 
@@ -112,29 +130,47 @@ class CLIMachine(Machine):
             'TERMINATE_SESSION', after='after_terminate_session_cb')
 
         if check_alive:
+            if self.debug:
+                _log.debug("INIT -> CHECK_ALIVE")
             self._go_check_alive()
         else:
+            if self.debug:
+                _log.debug("INIT -> ITER_CREDENTIALS")
             self._go_iter_credentials()
 
     def after_check_alive_cb(self):
         for protocol in self.protocols:
             check_alive_port = self.ports.get(protocol)
+            if self.debug:
+                _log.debug("  Testing TCP port {0}".format(check_alive_port))
             with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
-                sock.settimeout(3)
+                sock.settimeout(2)
                 try:
                     if sock.connect_ex((self.host, check_alive_port)) == 0:
                         # It's alive...
                         # FIXME: Log a port-open and selected_protocol message
                         self.selected_protocol = protocol
+                        if self.debug:
+                            _log.debug("  TCP port {0} alive".format(
+                                check_alive_port))
                         break
                     else:
-                        # FIXME: Log a port-closed message here...
-                        raise ConnectionFailedError("Cannot connect to port {0} on host: {1}".format(check_alive_port, self.host))
+                        if self.debug:
+                            _log.debug("  TCP port {0} closed".format(
+                                check_alive_port))
                 except socket.gaierror:
                     raise ValueError("Unknown hostname: '{0}'".format(
                         self.host))
+        else:
+            # FIXME: Log a port-closed message here...
+            raise ConnectionFailedError("Cannot connect to host: {0}".format(
+                self.host))
+
+        time.sleep(1.5) # Give the platform time to close after "with closing()"
 
         ## Must break out of the loop above to get here...
+        if self.debug:
+            _log.debug("CHECK_ALIVE -> ITER_CREDENTIALS")
         self._go_iter_credentials()
 
     def after_iter_credentials_cb(self):
@@ -142,8 +178,10 @@ class CLIMachine(Machine):
             self.account = self.nopriv_account_iter.next()
         except:
             # FIXME: Log an out-of-credentials error here...
-            raise AuthenticationFailedError("Login failure on host {1} using the known credentials".format(self.host))
+            raise AuthenticationFailedError("Login failure on host {0} using the known credentials".format(self.host))
 
+        if self.debug:
+            _log.debug("ITER_CREDENTIALS -> CONNECT")
         self._go_connect()
 
     def after_iter_enable_credentials_cb(self):
@@ -152,6 +190,9 @@ class CLIMachine(Machine):
         except:
             # FIXME: Log an out-of-credentials error here...
             raise AuthenticationFailedError("Enable password failure on host {1} using the known credentials".format(self.host))
+
+        if self.debug:
+            _log.debug("ITER_ENABLE_CREDENTIALS -> LOGIN_SUCCESS_NOPRIV")
         self._go_login_success_nopriv()
 
     def after_connect_cb(self):
@@ -167,24 +208,49 @@ class CLIMachine(Machine):
 
         if self.child is not None:
             self.child.close()
-        self.child = pexpect.spawn(cmd, timeout=30)
+        if self.debug:
+            _log.debug(cmd)
+        self.child = pexpect.spawn(cmd, timeout=self.command_timeout)
 
         if self.log_screen:
             self.child.logfile = sys.stdout 
 
         try:
-            result = self.child.expect(['assword:', 'name:', 
-                r'[\n\r]\S+?>', r'[\n\r]\S+?#'], timeout=10)
+            if self.debug:
+                _log.debug("*expect* response")
+            try:
+                result = self.child.expect(['assword:', 'name:', 
+                    r'[\n\r]\S+?>', r'[\n\r]\S+?#'], timeout=self.login_timeout)
+            except pexpect.EOF:
+                raise UnexpectedConnectionClose
+
+            except pexpect.TIMEOUT:
+                raise ResponseFailException("CLIMachine did not anticipate this response '{0}'".format(self.response))
 
             if (result == 0):
+                if self.debug:
+                    _log.debug("response '{0}'".format(self.response))
+                    _log.debug("CONNECT -> SEND_CREDENTIALS")
                 self._go_send_credentials()
             elif (result == 1):
+                if self.debug:
+                    _log.debug("response '{0}'".format(self.response))
+                    _log.debug("CONNECT -> SEND_USERNAME")
                 self._go_send_username()
             elif ((self.auto_priv_mode is True) and (result == 2)):
+                if self.debug:
+                    _log.debug("response '{0}'".format(self.response))
+                    _log.debug("CONNECT -> LOGIN_SUCCESS_NOPRIV")
                 self._go_login_success_nopriv()
             elif ((self.auto_priv_mode is False) and (result == 2)):
+                if self.debug:
+                    _log.debug("response '{0}'".format(self.response))
+                    _log.debug("CONNECT -> INTERACT")
                 self._go_interact()
             elif (result == 3):
+                if self.debug:
+                    _log.debug("response '{0}'".format(self.response))
+                    _log.debug("CONNECT -> LOGIN_SUCCESS_PRIV")
                 self._go_login_success_priv()
             else:
                 raise ValueError("Unknown result code: {0}".format(result))
@@ -197,51 +263,78 @@ class CLIMachine(Machine):
         assert self.account is not None
 
         try:
-            self.child.send(self.account.username+'\r')
+            if self.debug:
+                _log.debug("*send*")
+            self.child.sendline(self.account.username)
+            if self.debug:
+                _log.debug("*expect*")
             result = self.child.expect(['[\r\n][Pp]assword:', '[\n\r]\S+?>', 
-                '[\n\r]\S+?#'], timeout=10)
+                '[\n\r]\S+?#'], timeout=self.login_timeout)
 
         except pexpect.TIMEOUT:
-            # FIXME: Raise and log an error here...
-            self._go_terminate_session()
+            raise ResponseFailException("CLIMachine did not anticipate this response '{0}'".format(self.response))
 
         if (result == 0):
+            if self.debug:
+                _log.debug("SEND_USERNAME -> SEND_CREDENTIALS")
             self._go_send_credentials()
         elif ((self.auto_priv_mode is False) and (result == 1)):
+            if self.debug:
+                _log.debug("SEND_USERNAME -> INTERACT")
             self._go_interact()
         elif ((self.auto_priv_mode is True) and (result == 1)):
+            if self.debug:
+                _log.debug("SEND_USERNAME -> LOGIN_SUCCESS_NOPRIV")
             self._go_login_success_nopriv()
         elif (result == 2):
+            if self.debug:
+                _log.debug("SEND_USERNAME -> LOGIN_SUCCESS_PRIV")
             self._go_login_success_priv()
 
     def after_send_credentials_cb(self):
         assert self.account is not None
 
-        self.child.send(self.account.password+'\r')
+        if self.debug:
+            _log.debug("*send*")
+        self.child.sendline(self.account.password)
         try:
-            time.sleep(0.05)
-            self.child.flush()
+            if self.debug:
+                _log.debug("*expect*")
             result = self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#', 
-                'assword:'], timeout=10)
+                'assword:'], timeout=self.login_timeout)
         except pexpect.TIMEOUT:
+            if self.debug:
+                _log.debug("SEND_CREDENTIALS -> LOGIN_FAIL")
+            self.child.close()
             self._go_login_fail()
 
-        if ((self.auto_priv_mode is False) and (result==0)):
-            ## FIXME: Log info here that we bypassed enable...
-            self._go_interact()
-        elif ((self.auto_priv_mode is True) and (result==0)):
-            ## FIXME: Log info here that we got to nopriv...
-            self._go_login_success_nopriv()
-        elif (result==1):
-            ## FIXME: Log info here that we got to priv...
-            self._go_login_success_priv()
-        elif (result==2):
-            self._go_login_fail()
-        else:
-            raise NotImplementedError
+        try:
+            if ((self.auto_priv_mode is False) and (result==0)):
+                if self.debug:
+                    _log.debug("SEND_CREDENTIALS -> INTERACT")
+                self._go_interact()
+            elif ((self.auto_priv_mode is True) and (result==0)):
+                if self.debug:
+                    _log.debug("SEND_CREDENTIALS -> LOGIN_SUCCESS_NOPRIV")
+                self._go_login_success_nopriv()
+            elif (result==1):
+                if self.debug:
+                    _log.debug("SEND_CREDENTIALS -> LOGIN_SUCCESS_PRIV")
+                self._go_login_success_priv()
+            elif (result==2):
+                if self.debug:
+                    _log.debug("SEND_CREDENTIALS -> LOGIN_FAIL")
+                self._go_login_fail()
+            else:
+                raise NotImplementedError
+        except UnboundLocalError:
+            if self.debug:
+                _log.debug('WORKAROUND: pexpect keeps state from a stale and closed pexpect.spawn session (looks like a bug)')
 
     def after_login_fail_cb(self):
         ## FIXME: Log a warning here...
+        if self.debug:
+            _log.debug("LOGIN_FAIL -> ITER_CREDENTIALS")
         self._go_iter_credentials()
 
     def after_login_success_nopriv_cb(self):
@@ -249,7 +342,7 @@ class CLIMachine(Machine):
         self.child.expect('assword:')
         self.child.send(self.account.password+'\r')
         result = self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], 
-            timeout=10)
+            timeout=self.login_timeout)
         if ((self.auto_priv_mode is False) and (result==0)):
             ## FIXME: Log info here that we bypassed enable...
             self._go_interact()
@@ -263,11 +356,13 @@ class CLIMachine(Machine):
             raise NotImplementedError
 
     def after_login_success_priv_cb(self):
-        ## FIXME: Log that we got to priv mode...
+        if self.debug:
+            _log.debug("LOGIN_SUCCESS -> INTERACT")
         self._go_interact()
 
     def after_interact_cb(self):
-        ## FIXME: Log that we got to interact mode...
+        if self.debug:
+            _log.debug("INTERACT mode")
         pass
 
     def after_interact_timeout_cb(self):
@@ -294,12 +389,20 @@ class CLIMachine(Machine):
         for account in self.credentials:
             yield account
 
-    def execute(self, line):
+    def execute(self, line, timeout=-1, wait=0.0):
+        if timeout < 0:
+            timeout = self.command_timeout
         assert (self.child is not None), "Cannot execute a command on a closed session"
+        assert isinstance(line, str) or isinstance(line, unicode)
+        assert isinstance(timeout, int)
+        assert isinstance(wait, float)
+        assert timeout > 0
+        assert wait >= 0.0
 
         try:
             self.child.sendline(line)
-            self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'])
+            self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], timeout)
+            time.sleep(wait)
         except pexpect.TIMEOUT:
             self._go_interact_timeout()
 
@@ -319,15 +422,15 @@ class CLIMachine(Machine):
 
     @property
     def response(self):
-        return self.child.before
+        return str(self.child.before) + str(self.child.after)
 
 if __name__=='__main__':
 
     accts = (Account('itsa-mistake', ''), Account('rviews', 'secret2'),)
     conn = CLIMachine('route-views.routeviews.org', accts, 
-        auto_priv_mode=False, log_screen=True)
+        auto_priv_mode=False, log_screen=True, debug=False)
     conn.execute('term len 0')
     conn.execute('show version')
-    conn.execute('show users')
+    conn.execute('show users', timeout=60)
     conn.logout()
 
