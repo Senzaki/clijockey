@@ -68,7 +68,7 @@ Goals
 Restrictions
 ------------
 
-clijockey only supports *nix (OpenSSH is required); no Windows support.
+clijockey only supports \*nix (OpenSSH is required); no Windows support.
 
 Right now, I recommend Python 2.x; Python3 support is forthcoming, but a lower
 priority
