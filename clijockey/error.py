@@ -10,6 +10,10 @@ class ResponseFailException(Exception):
     def __init__(self, *args, **kwargs):
         super(ResponseFailException, self).__init__(*args, **kwargs)
 
+class ExecuteTimeout(Exception):
+    def __init__(self, *args, **kwargs):
+        super(ExecuteTimeout, self).__init__(*args, **kwargs)
+
 class UnexpectedConnectionClose(Exception):
     def __init__(self, *args, **kwargs):
         super(UnexpectedConnectionClose, self).__init__(*args, **kwargs)
