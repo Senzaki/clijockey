@@ -15,6 +15,10 @@ This is a simple wrapper around pexpect... Standard usage ::
     conn = CLIMachine('route-views.routeviews.org', accts,
         auto_priv_mode=False, log_screen=True, debug=False, command_timeout=5)
 
+    ### NOTE: Please don't file bugs about problems with route-views... it's
+    ###     constantly hammered by people and randomly stops responding.
+    ###     That is in fact, why I use it as a demo and test case
+
     conn.execute('term len 0', wait=0.5)    # Wait 0.5 seconds after the cmd
     conn.execute('show version')
 
