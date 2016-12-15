@@ -28,7 +28,7 @@ setup(name='clijockey',
       packages=find_packages(),
       use_2to3=True,
       zip_safe=False,
-      install_requires = ['pexpect', 'transitions', 'colorama'],   # Package dependencies here
+      install_requires = ['pexpect', 'transitions', 'gtextfsm', 'colorama'],   # Package dependencies here
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Environment :: Plugins',
