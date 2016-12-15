@@ -27,6 +27,8 @@ This is a simple wrapper around pexpect... Standard usage ::
 Installation
 ------------
 
+Don't be fooled by the low version number, it works pretty well.
+
 Install with pip ::
 
     pip install -U clijockey
