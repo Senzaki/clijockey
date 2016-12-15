@@ -22,6 +22,10 @@ This is a simple wrapper around pexpect... Standard usage ::
     ## Get the result of the 'show users' command...
     user_output = conn.response
 
+    ## Automatically parse with TextFSM
+    TEMPLATE = """Value INTF (\S+)\nValue IPADDR (\S+)\nValue STATUS (up|down|administratively down)\nValue PROTO (up|down)\n\nStart\n  ^${INTF}\s+${IPADDR}\s+\w+\s+\w+\s+${STATUS}\s+${PROTO} -> Record"""
+    print "PARSED", conn.execute('show ip int brief', template=TEMPLATE)
+
     conn.logout()
 
 Installation
