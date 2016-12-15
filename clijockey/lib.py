@@ -17,6 +17,7 @@
 from contextlib import closing
 import logging
 import socket
+from StringIO import StringIO
 import time
 import sys
 import os
@@ -27,6 +28,7 @@ from util import Account
 import pdb
 
 from transitions import Machine
+from textfsm import TextFSM
 from colorama import Fore, Style
 import pexpect
 
@@ -389,7 +391,12 @@ class CLIMachine(Machine):
         for account in self.credentials:
             yield account
 
-    def execute(self, line, timeout=-1, wait=0.0):
+    def execute(self, line, timeout=-1, wait=0.0, template="", 
+        timeout_fail=False):
+
+        retval = list()
+        fh = None
+
         if timeout < 0:
             timeout = self.command_timeout
         assert (self.child is not None), "Cannot execute a command on a closed session"
@@ -404,7 +411,22 @@ class CLIMachine(Machine):
             self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], timeout)
             time.sleep(wait)
         except pexpect.TIMEOUT:
-            self._go_interact_timeout()
+            if timeout_fail:
+                raise ExecuteTimeout("Timeout after executing '{0}'".format(
+                    line))
+            else:
+                self._go_interact_timeout()
+
+        if template:
+            if os.path.isfile(template):
+                fh = open(template)
+            else:
+                fh = StringIO(template)
+            fsm = TextFSM(fh)
+            retval = fsm.ParseText(self.response)
+            fh.close()
+
+        return retval
 
     def logout(self):
         try:
@@ -432,5 +454,6 @@ if __name__=='__main__':
     conn.execute('term len 0')
     conn.execute('show version')
     conn.execute('show users', timeout=60)
+    print conn.execute('show ip int brief', template='template.txt')
     conn.logout()
 
