@@ -61,10 +61,11 @@ Goals
 3.  Try a list of credentials until one works.
 4.  Don't assume the credentials *always* grant enable privs mode
 5.  Speed
-6.  Verbose error messages and debugs.
-7.  Support both telnet and ssh
-8.  Per-session TOML logging (not implemented yet)
-9.  Python3 support (not implemented yet)
+6.  Optional parsing with textFSM
+7.  Verbose error messages and debugs.
+8.  Support both telnet and ssh
+9.  Per-session TOML logging (not implemented yet)
+10.  Python3 support (not implemented yet)
 
 Restrictions
 ------------
