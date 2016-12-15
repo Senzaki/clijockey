@@ -395,9 +395,9 @@ class CLIMachine(Machine):
         assert (self.child is not None), "Cannot execute a command on a closed session"
         assert isinstance(line, str) or isinstance(line, unicode)
         assert isinstance(timeout, int)
-        assert isinstance(wait, float)
+        assert isinstance(wait, float) or isinstance(wait, int)
         assert timeout > 0
-        assert wait >= 0.0
+        assert float(wait) >= 0.0
 
         try:
             self.child.sendline(line)
