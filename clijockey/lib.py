@@ -45,7 +45,7 @@ _log.addHandler(_LOG_CHANNEL_STDOUT)
 class CLIMachine(Machine):
     def __init__(self, host, credentials, protocols=('ssh', 'telnet',), 
         auto_priv_mode=True, check_alive=True, log_screen=False, debug=False,
-        command_timeout=30, login_timeout=15):
+        command_timeout=30, login_timeout=20):
         STATES = [
             'INIT', 'CHECK_ALIVE', 
             'ITER_CREDENTIALS', 'SEND_USERNAME', 'SEND_CREDENTIALS', 
