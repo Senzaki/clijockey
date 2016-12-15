@@ -1,3 +1,4 @@
 pexpect
+textfsm
 transitions
 colorama
