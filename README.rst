@@ -49,6 +49,7 @@ another library is required.
 1.  The popular Python libraries with vendor-specific CLI drivers are 
 pointlessly finicky and sometimes don't even work for all permutations from 
 that vendor.  I'm tired of working around quirky libraries.
+
 2.  Many of the existing libraries drive SSH sessions slowly because they use 
 pure-python SSH (i.e. paramiko)
 
