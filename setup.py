@@ -14,7 +14,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(name='clijockey',
-      version='0.0.5',
+      version='0.0.6',
       description='Automate ssh and telnet sessions to network devices',
       url='https://github.com/mpenning/clijockey/',
       author='David Michael Pennington',
@@ -28,7 +28,8 @@ setup(name='clijockey',
       packages=find_packages(),
       use_2to3=True,
       zip_safe=False,
-      install_requires = ['pexpect', 'transitions', 'gtextfsm', 'colorama'],   # Package dependencies here
+      install_requires = ['pexpect', 'transitions', 'gtextfsm', 
+          'arrow', 'colorama'],   # Package dependencies here
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Environment :: Plugins',
