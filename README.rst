@@ -1,11 +1,30 @@
+.. image:: https://img.shields.io/pypi/v/clijockey.svg
+      :target: https://pypi.python.org/pypi/clijockey/
+   :alt: Version
+
+.. image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+      :target: https://opensource.org/licenses/Apache-2.0
+   :alt: License
+
+
+*Painless screen scraping for network engineers - Control your network with Python*
 
 Usage
 -----
 
-This is a simple wrapper around pexpect... Standard usage ::
+Essentially, this is a simple wrapper around pexpect_. Standard usage:
+
+.. code:: python
+
+    import time
 
     from clijockey.lib import CLIMachine
     from clijockey.util import Account
+    from clijockey.util import RotatingTOMLLog
+
+    # Create a log named rviews_intfs, which automatically rotates at midnight
+    #     category must be unique per logging file
+    log = RotatingTOMLLog('rviews_intfs', category='route-views')
 
     ## Define a tuple of username and password pairs here...
     ##    The first is an expected failure to illustrate how it works
@@ -26,11 +45,20 @@ This is a simple wrapper around pexpect... Standard usage ::
     ## Get the result of the 'show users' command...
     user_output = conn.response
 
-    ## Automatically parse with TextFSM
+    ## Automatically parse with TextFSM and log to a TOML log...
     TEMPLATE = """Value INTF (\S+)\nValue IPADDR (\S+)\nValue STATUS (up|down|administratively down)\nValue PROTO (up|down)\n\nStart\n  ^${INTF}\s+${IPADDR}\s+\w+\s+\w+\s+${STATUS}\s+${PROTO} -> Record"""
-    print "PARSED", conn.execute('show ip int brief', template=TEMPLATE)
+    for ii in range(0, 5):
+        intf_list = conn.execute('show ip int brief', template=TEMPLATE)
+        for vals in intf_list:
+            info = {key: val for key, val in zip(['intf', 'addr', 'status', 'proto'], vals)}
+            ## NOTE: info must be a dictionary...
+            log.write_table_list(table='interfaces', info=info, 
+                timestamp=True)
+        time.sleep(1)
 
     conn.logout()
+
+
 
 Installation
 ------------
@@ -46,20 +74,32 @@ Why
 
 *Short answer*: 
 
-Because libraries like this should "just work".
+Because libraries like this should "just work" regardless of what you're screen scraping.
 
 *Longer answer*:
 
-There are several similar Python command / response libraries... some even 
-have a battery of vendor-specific plugins.  The obvious question is why I think
-another library is required.
+I have been writing network screen scraping scripts for two decades; over 
+time, I have accumulated some opinions about how things should be done.
+
+As of this writing, there are several similar Python command / response 
+libraries... some even have a battery of vendor-specific plugins.  The obvious 
+question is why I think another library is required.  Am I merely guilty of the
+`not invented here`_ syndrome?
+
+I hope not.
 
 1.  The popular Python libraries with vendor-specific CLI drivers are 
 pointlessly finicky and sometimes don't even work for all permutations from 
-that vendor.  I'm tired of working around quirky libraries.
+that vendor.  All credit to the tireless souls who write and maintain them, but
+I'm tired of hacking around quirks in libraries; I just want to get work done.
 
 2.  Many of the existing libraries drive SSH sessions slowly because they use 
-pure-python SSH (i.e. paramiko)
+paramiko_ (pure-python SSH)
+
+3.  Unit tests should stand alone without needing a real network to test them
+on.  This isn't easy when it comes to testing screen scraping, but 
+`Samuel Abel's`_ `exscript tests`_ are a good example of one way you can do 
+this well.  I leveraged his ideas in clijockey_
 
 Goals
 -----
@@ -69,16 +109,41 @@ Goals
 3.  Try a list of credentials until one works.
 4.  Don't assume the credentials *always* grant enable privs mode
 5.  Speed
-6.  Optional parsing with textFSM
+6.  Optional parsing with TextFSM_ (gtextfsm_ to be exact)
 7.  Verbose error messages and debugs.
 8.  Support both telnet and ssh
-9.  Per-session TOML logging (not implemented yet)
+9.  Per-session TOML_ logging (not implemented yet)
 10.  Python3 support (not implemented yet)
 
 Restrictions
 ------------
 
-clijockey only supports \*nix (OpenSSH is required); no Windows support.
+clijockey_ only supports `\*nix`_ (OpenSSH_ is required); no Windows support.
 
-Right now, I recommend Python 2.x; Python3 support is forthcoming, but a lower
+Right now, I recommend Python_ 2.x; Python3 support is forthcoming, but a lower
 priority
+
+
+.. _pexpect: http://https://pexpect.readthedocs.io/en/stable/
+
+.. _`not invented here`: http://dilbert.com/strip/2014-08-12
+
+.. _`Samuel Abel's`: https://github.com/knipknap
+
+.. _`exscript tests`: https://github.com/knipknap/exscript/tree/master/tests
+
+.. _`clijockey`: https://github.com/mpenning/clijockey/
+
+.. _Python: https://python.org/
+
+.. _paramiko: http://www.paramiko.org/
+
+.. _TextFSM: https://github.com/google/textfsm
+
+.. _gtextfsm: https://pypi.python.org/pypi/gtextfsm
+
+.. _OpenSSH: https://www.openssh.com/
+
+.. _`\*nix`: https://en.wikipedia.org/wiki/Unix-like
+
+.. _TOML: https://github.com/toml-lang/toml
