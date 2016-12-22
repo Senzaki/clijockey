@@ -15,11 +15,12 @@
 #   limitations under the License.
 
 from contextlib import closing
+from StringIO import StringIO
 import logging
 import socket
-from StringIO import StringIO
 import time
 import sys
+import re
 import os
 
 from error import ConnectionFailedError, AuthenticationFailedError
@@ -45,9 +46,9 @@ _log.addHandler(_LOG_CHANNEL_STDOUT)
 
 
 class CLIMachine(Machine):
-    def __init__(self, host, credentials, protocols=('ssh', 'telnet',), 
+    def __init__(self, host='', credentials=(), protocols=('ssh', 'telnet',), 
         auto_priv_mode=True, check_alive=True, log_screen=False, debug=False,
-        command_timeout=30, login_timeout=20):
+        command_timeout=30, login_timeout=20, test=''):
         STATES = [
             'INIT', 'CHECK_ALIVE', 
             'ITER_CREDENTIALS', 'SEND_USERNAME', 'SEND_CREDENTIALS', 
@@ -72,6 +73,8 @@ class CLIMachine(Machine):
         self.debug = debug
         self.command_timeout = command_timeout
         self.login_timeout = login_timeout
+        self.test = test
+
         self.child = None
         self.account = None
 
@@ -199,7 +202,9 @@ class CLIMachine(Machine):
 
     def after_connect_cb(self):
         username = self.account.username
-        if self.selected_protocol=='ssh':
+        if self.test:
+            cmd = self.test
+        elif self.selected_protocol=='ssh':
             ssh_options = '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
             cmd = 'ssh {0} -p {1} -l {2} {3}'.format(ssh_options, 
                 self.ports.get('ssh'), username, self.host)
@@ -391,7 +396,7 @@ class CLIMachine(Machine):
         for account in self.credentials:
             yield account
 
-    def execute(self, line, timeout=-1, wait=0.0, template="", 
+    def execute(self, line, timeout=-1, wait=0.0, regex="", template="", 
         timeout_fail=False):
 
         retval = list()
@@ -399,16 +404,23 @@ class CLIMachine(Machine):
 
         if timeout < 0:
             timeout = self.command_timeout
+
         assert (self.child is not None), "Cannot execute a command on a closed session"
         assert isinstance(line, str) or isinstance(line, unicode)
         assert isinstance(timeout, int)
         assert isinstance(wait, float) or isinstance(wait, int)
+        assert isinstance(regex, str)
+        assert isinstance(template, str)
         assert timeout > 0
         assert float(wait) >= 0.0
 
+        expect_prompts = ['[\n\r]\S+?>', '[\n\r]\S+?#']
+        if regex:
+            expect_prompts.append(regex)
+
         try:
             self.child.sendline(line)
-            self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], timeout)
+            self.child.expect(expect_prompts, timeout)
             time.sleep(wait)
         except pexpect.TIMEOUT:
             if timeout_fail:
@@ -431,7 +443,7 @@ class CLIMachine(Machine):
     def logout(self):
         try:
             self.child.send('exit\r')
-            self.child.expect('', timeout=1)
+            self.child.expect('', timeout=1, timeout_fail=False)
         except pexpect.TIMEOUT:
             self._go_terminate_cli()
 
@@ -456,4 +468,3 @@ if __name__=='__main__':
     conn.execute('show users', timeout=60)
     print conn.execute('show ip int brief', template='template.txt')
     conn.logout()
-
