@@ -2,4 +2,5 @@ pexpect
 gtextfsm
 transitions
 arrow
+traitlets
 colorama
