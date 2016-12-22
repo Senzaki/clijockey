@@ -1,10 +1,10 @@
 .. image:: https://img.shields.io/pypi/v/clijockey.svg
       :target: https://pypi.python.org/pypi/clijockey/
-   :alt: Version
+      :alt: Version
 
 .. image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
       :target: https://opensource.org/licenses/Apache-2.0
-   :alt: License
+      :alt: License
 
 
 *Painless screen scraping for network engineers - Control your network with Python*
@@ -21,6 +21,18 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
     from clijockey.lib import CLIMachine
     from clijockey.util import Account
     from clijockey.util import RotatingTOMLLog
+    from clijockey.util import TraitTable, CUnicode
+
+    # TextFSM template...
+    TEMPLATE = """Value INTF (\S+)\nValue IPADDR (\S+)\nValue STATUS (up|down|administratively down)\nValue PROTO (up|down)\n\nStart\n  ^${INTF}\s+${IPADDR}\s+\w+\s+\w+\s+${STATUS}\s+${PROTO} -> Record"""
+
+    # Interfaces() is used to map TextFSM template values to the TOML Log
+    class Interfaces(TraitTable):
+        intf = CUnicode()
+        addr = CUnicode()
+        status = CUnicode()
+        proto = CUnicode()
+        _map = ('intf', 'addr', 'status', 'proto') # TextFSM field order
 
     # Create a log named rviews_intfs, which automatically rotates at midnight
     #     category must be unique per logging file
@@ -34,10 +46,6 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
     conn = CLIMachine('route-views.routeviews.org', accts,
         auto_priv_mode=False, log_screen=True, debug=False, command_timeout=5)
 
-    ### NOTE: Please don't file bugs about problems with route-views... it's
-    ###     constantly hammered by people and randomly stops responding.
-    ###     That is in fact, why I use it as a demo and test case
-
     conn.execute('term len 0', wait=0.5)    # Wait 0.5 seconds after the cmd
     conn.execute('show version')
 
@@ -45,19 +53,17 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
     ## Get the result of the 'show users' command...
     user_output = conn.response
 
-    ## Automatically parse with TextFSM and log to a TOML log...
-    TEMPLATE = """Value INTF (\S+)\nValue IPADDR (\S+)\nValue STATUS (up|down|administratively down)\nValue PROTO (up|down)\n\nStart\n  ^${INTF}\s+${IPADDR}\s+\w+\s+\w+\s+${STATUS}\s+${PROTO} -> Record"""
+    ## Automatically parse with TextFSM and log to a TOML log
     for ii in range(0, 5):
         intf_list = conn.execute('show ip int brief', template=TEMPLATE)
         for vals in intf_list:
-            info = {key: val for key, val in zip(['intf', 'addr', 'status', 'proto'], vals)}
             ## NOTE: info must be a dictionary...
-            log.write_table_list(table='interfaces', info=info, 
-                timestamp=True)
+            info = dict(Interfaces(vals))
+            ## Write a timestamped list of tables named 'rview_intf' to the log
+            log.write_table_list(table='rview_intf', info=info, timestamp=True)
         time.sleep(1)
 
     conn.logout()
-
 
 
 Installation
@@ -112,7 +118,7 @@ Goals
 6.  Optional parsing with TextFSM_ (gtextfsm_ to be exact)
 7.  Verbose error messages and debugs.
 8.  Support both telnet and ssh
-9.  Per-session TOML_ logging (not implemented yet)
+9.  Per-session TOML_ logging (partially implemented)
 10.  Python3 support (not implemented yet)
 
 Restrictions
