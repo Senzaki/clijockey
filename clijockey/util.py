@@ -9,7 +9,7 @@ from traitlets import CUnicode, CInt, CFloat, CLong, CBytes, CBool
 from traitlets import Unicode, Int, Float, Long, Bytes, Bool
 from traitlets import CaselessStrEnum, Enum, UseEnum
 from traitlets import CRegExp
-from traitlets import HasTraits, Union, validate
+from traitlets import HasTraits, Union, validate, TraitType
 from traitlets import Dict, Tuple, Set, List
 import arrow
 
@@ -29,24 +29,39 @@ import arrow
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+
 class Account(object):
     def __init__(self, username="", password="", priv_password=""):
         self.username = username
         self.password = password
-        self.priv_password = priv_password
+        self._priv_password = priv_password
 
     def __repr__(self):
         return """<Account username: {0}>""".format(self.username)
 
-def CustomLogger(filename, category="", rotate="", 
-        buffer=10*1024,
-        utc=False, 
-        backupCount=0
-    ):
+    @property
+    def priv_password(self):
+        """Return the priv_password no matter what; priv_password defaults
+        to password unless it's explicitly defined"""
+        if self._priv_password:
+            return self._priv_password
+        else:
+            return self.password
+
+
+def CustomLogger(filename,
+                 category="",
+                 rotate="",
+                 buffer=10 * 1024,
+                 utc=False,
+                 backupCount=0):
     assert isinstance(category, str)
-    assert (category!="root") or (category=="")
+    assert (category != "root") or (category == "")
 
     logger = logging.getLogger(category)
+
+    ## Check if the hander is already registered...
+    # http://stackoverflow.com/q/15870380
     if logger.handlers:
         return logger
     else:
@@ -57,42 +72,39 @@ def CustomLogger(filename, category="", rotate="",
         streamhandler.setLevel(logLevel)
         streamhandler.setFormatter(formatter)
         memoryhandler = MemoryHandler(
-            capacity=buffer,
-            flushLevel=logging.ERROR,
-            target=streamhandler
-        )
-        #filehandler = logging.FileHandler(filename)
-        filehandler = TimedRotatingFileHandler(filename, 
-            when=rotate, 
-            utc=utc,
-            backupCount=backupCount
-        )
-        filehandler.suffix = "%Y-%m-%d" # http://stackoverflow.com/a/338566
+            capacity=buffer, flushLevel=logging.ERROR, target=streamhandler)
+        filehandler = TimedRotatingFileHandler(
+            filename, when=rotate, utc=utc, backupCount=backupCount)
+        filehandler.suffix = "%Y-%m-%d"  # http://stackoverflow.com/a/338566
         filehandler.setLevel(logLevel)
         filehandler.setFormatter(formatter)
 
-
-        ## Check if the hander is already registered...
-        # http://stackoverflow.com/q/15870380
         logger.setLevel(logLevel)
         logger.addHandler(memoryhandler)
         logger.addHandler(filehandler)
 
         return logger, memoryhandler
 
+
 class RotatingTOMLLog(object):
-    def __init__(self, filename="", category="", rotate='midnight', 
-        buffer=10*1024, utc=False, backupCount=0):
+    def __init__(self,
+                 filename="",
+                 category="",
+                 rotate='midnight',
+                 buffer=10 * 1024,
+                 utc=False,
+                 backupCount=0):
         assert isinstance(buffer, int)
         assert buffer > 0
 
         self.category = category
-        self.log, self.memoryhandler = CustomLogger(filename,
+        self.log, self.memoryhandler = CustomLogger(
+            filename,
             category=category,
             rotate=rotate,
             utc=utc,
-            backupCount=backupCount,
-        )
+            backupCount=backupCount, )
+        ## Flush the logging buffer, no matter what
         atexit.register(self.flush)
 
     def _toml_value(self, val):
@@ -111,9 +123,9 @@ class RotatingTOMLLog(object):
             return '{0}'.format(val)
 
     def write_table(self, table="", info={}, timestamp=False):
-        assert table!=""
+        assert table != ""
         assert isinstance(info, dict)
-        assert info!={}
+        assert info != {}
 
         if timestamp and isinstance(timestamp, bool):
             now = arrow.now()
@@ -127,9 +139,9 @@ class RotatingTOMLLog(object):
             self.log.debug('{0} = {1}'.format(key, self._toml_value(val)))
 
     def write_table_list(self, table="", info={}, timestamp=False):
-        assert table!=""
+        assert table != ""
         assert isinstance(info, dict)
-        assert info!={}
+        assert info != {}
 
         if timestamp and isinstance(timestamp, bool):
             now = arrow.now()
@@ -148,25 +160,64 @@ class RotatingTOMLLog(object):
     def flush(self):
         self.memoryhandler.flush()
 
+
 class TraitTable(HasTraits):
-    _map = Tuple()    # Key-Value map
+    ## WARNING: Do not use setattr() on HasTraits subclasses
+    _map = Tuple()
+    _dict = Dict()
+
     def __init__(self, *args, **kwargs):
-        #map = kwargs.get('map', None) or args[0]
-        values = kwargs.get('values', None) or args[0]
-        #assert map is not None
-        #assert isinstance(map, tuple) or isinstance(map, list)
-        assert values is not None
-        assert isinstance(values, tuple) or isinstance(values, list)
+        super(TraitTable, self).__init__(*args, **kwargs)
 
-        self._dict = dict()
-        for attr_name, value in zip(self._map, values):
-            setattr(self, attr_name, value)  # Set the value, through traitlets
-            self._dict[attr_name] = getattr(self, attr_name) # Get the value
+        input_list = False
+        if len(args)==0 and getattr(kwargs, 'map', None) and getattr(kwargs, 'values', None):
+            # Inputs must be lists or tuples
+            tmp_map = kwargs('map')
+            values = kwargs('values')
+            assert getattr(tmp_map, 'index')
+            assert getattr(values, 'index')
 
-    def as_dict(self):
-        return self._dict
+            input_list = True
+
+        elif (len(args)==1) and (len(kwargs)==0):
+            # Input must be a dict...
+            assert getattr(args[0], 'keys')
+            tmp_map = tuple(args[0].keys())
+            values = [args[0][ii] for ii in tmp_map] # Remap values as list
+
+            tmp_dict = args[0]
+
+        elif (len(args)==1) and (len(kwargs)==1) and kwargs.get('values', None):
+            # Inputs must be lists or tuples
+            tmp_map = args[0]
+            values = kwargs.get('values')
+            assert getattr(args[0], 'index')
+            assert getattr(values, 'index')
+
+            input_list = True
+
+        elif len(args)==2:
+            # Inputs must be lists or tuples
+            assert getattr(args[0], 'index')
+            assert getattr(args[1], 'index')
+            tmp_map = args[0]
+            values = args[1]
+
+            input_list = True
+
+        else:
+            raise ValueError
+
+        if input_list:
+            tmp_dict = dict()
+            for attr_name, value in zip(tmp_map, values):
+                tmp_dict[attr_name] = getattr(self, attr_name)  # Get the value
+
+        self._map = tmp_map
+        self._dict = tmp_dict
 
     # http://stackoverflow.com/a/35282286
     def __iter__(self):
         for attr_name, val in self._dict.items():
             yield attr_name, val
+
