@@ -160,32 +160,38 @@ class RotatingTOMLLog(object):
     def flush(self):
         self.memoryhandler.flush()
 
-
 class TraitTable(HasTraits):
     ## WARNING: Do not use setattr() on HasTraits subclasses
     _map = Tuple()
     _dict = Dict()
 
     def __init__(self, *args, **kwargs):
-        super(TraitTable, self).__init__(*args, **kwargs)
+        super(TraitTable, self).__init__()
 
         input_list = False
-        if len(args)==0 and getattr(kwargs, 'map', None) and getattr(kwargs, 'values', None):
+        if len(args)==0 and getattr(kwargs, '_map', None) and getattr(kwargs, 'values', None):
             # Inputs must be lists or tuples
-            tmp_map = kwargs('map')
+            tmp_map = kwargs('_map')
             values = kwargs('values')
             assert getattr(tmp_map, 'index')
             assert getattr(values, 'index')
 
             input_list = True
 
-        elif (len(args)==1) and (len(kwargs)==0):
+        elif (len(args)==1) and (len(kwargs)==0) and isinstance(args[0], dict):
             # Input must be a dict...
             assert getattr(args[0], 'keys')
             tmp_map = tuple(args[0].keys())
             values = [args[0][ii] for ii in tmp_map] # Remap values as list
 
             tmp_dict = args[0]
+
+        elif (len(args)==1) and (len(kwargs)==0) and isinstance(args[0], list):
+            # Input must be a list or tuple...
+            tmp_map = self._map
+            values = args[0]
+
+            input_list = True
 
         elif (len(args)==1) and (len(kwargs)==1) and kwargs.get('values', None):
             # Inputs must be lists or tuples
@@ -211,7 +217,15 @@ class TraitTable(HasTraits):
         if input_list:
             tmp_dict = dict()
             for attr_name, value in zip(tmp_map, values):
-                tmp_dict[attr_name] = getattr(self, attr_name)  # Get the value
+                setattr(self, attr_name, value)
+                tmp_dict[attr_name] = getattr(self, attr_name)
+        else:
+            for attr_name, value in tmp_dict.items():
+                setattr(self, attr_name, value)
+                tmp_dict[attr_name] = getattr(self, attr_name)
+
+            #kwargs.pop('_map', None)
+            #kwargs.pop('values', None)
 
         self._map = tmp_map
         self._dict = tmp_dict
