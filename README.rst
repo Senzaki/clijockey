@@ -47,7 +47,7 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
         auto_priv_mode=False, log_screen=True, debug=False, command_timeout=5)
 
     conn.execute('term len 0', wait=0.5)    # Wait 0.5 seconds after the cmd
-    conn.execute('show version', regex='\r') # regex is another prompt string
+    conn.execute('show version', regex='test>') # regex is another prompt string
 
     conn.execute('show users', timeout=60)  # 'show users' outputs slowly...
     ## Get the result of the 'show users' command...
