@@ -443,7 +443,7 @@ class CLIMachine(Machine):
     def logout(self):
         try:
             self.child.send('exit\r')
-            self.child.expect('', timeout=1, timeout_fail=False)
+            self.child.expect('', timeout=1)
         except pexpect.TIMEOUT:
             self._go_terminate_cli()
 
