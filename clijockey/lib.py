@@ -25,7 +25,7 @@ import os
 
 from error import ConnectionFailedError, AuthenticationFailedError
 from error import ResponseFailException, UnexpectedConnectionClose
-from util import Account
+from util import Account, TCPProto
 import pdb
 
 from transitions import Machine
@@ -46,7 +46,8 @@ _log.addHandler(_LOG_CHANNEL_STDOUT)
 
 
 class CLIMachine(Machine):
-    def __init__(self, host='', credentials=(), protocols=('ssh', 'telnet',), 
+    def __init__(self, host='', credentials=(), 
+        protocols=(TCPProto('ssh', 22), TCPProto('telnet', 23),), 
         auto_priv_mode=True, check_alive=True, log_screen=False, debug=False,
         command_timeout=30, login_timeout=20, test=''):
         STATES = [
@@ -78,7 +79,6 @@ class CLIMachine(Machine):
         self.child = None
         self.account = None
 
-        self.ports = {'ssh': 22, 'telnet': 23}
         self.protocols = protocols
         self.selected_protocol = None
 
@@ -145,24 +145,23 @@ class CLIMachine(Machine):
 
     def after_check_alive_cb(self):
         for protocol in self.protocols:
-            check_alive_port = self.ports.get(protocol)
             if self.debug:
-                _log.debug("  Testing TCP port {0}".format(check_alive_port))
+                _log.debug("  Testing TCP port {0}".format(protocol.port))
             with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
                 sock.settimeout(2)
                 try:
-                    if sock.connect_ex((self.host, check_alive_port)) == 0:
+                    if sock.connect_ex((self.host, protocol.port)) == 0:
                         # It's alive...
                         # FIXME: Log a port-open and selected_protocol message
                         self.selected_protocol = protocol
                         if self.debug:
                             _log.debug("  TCP port {0} alive".format(
-                                check_alive_port))
+                                protocol.port))
                         break
                     else:
                         if self.debug:
                             _log.debug("  TCP port {0} closed".format(
-                                check_alive_port))
+                                protocol.port))
                 except socket.gaierror:
                     raise ValueError("Unknown hostname: '{0}'".format(
                         self.host))
@@ -204,14 +203,14 @@ class CLIMachine(Machine):
         username = self.account.username
         if self.test:
             cmd = self.test
-        elif self.selected_protocol=='ssh':
+        elif self.selected_protocol.name.name=='ssh':
             ssh_options = '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
             cmd = 'ssh {0} -p {1} -l {2} {3}'.format(ssh_options, 
-                self.ports.get('ssh'), username, self.host)
-        elif self.selected_protocol=='telnet':
-            cmd = 'telnet {0} {1}'.format(self.host, self.ports.get('telnet'))
+                self.selected_protocol.port, username, self.host)
+        elif self.selected_protocol.name.name=='telnet':
+            cmd = 'telnet {0} {1}'.format(self.host, self.selected_protocol.port)
         else:
-            raise ValueError("'{0}' is an unsupported protocol".format(self.selected_protocol))
+            raise ValueError("'{0}' is an unsupported protocol".format(self.selected_protocol.name.name))
 
         if self.child is not None:
             self.child.close()
@@ -264,7 +263,7 @@ class CLIMachine(Machine):
 
         except pexpect.TIMEOUT:
             # FIXME: Log an error here...
-            raise ConnectionFailedError("Cannot connect to port {0} on host: {1}".format(self.ports.get(self.selected_protocol), self.host))
+            raise ConnectionFailedError("Cannot connect to port {0} on host: {1}".format(self.selected_protocol.name.port, self.host))
 
     def after_send_username_cb(self):
         assert self.account is not None
