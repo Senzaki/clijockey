@@ -9,8 +9,11 @@ from traitlets import CUnicode, CInt, CFloat, CLong, CBytes, CBool
 from traitlets import Unicode, Int, Float, Long, Bytes, Bool
 from traitlets import CaselessStrEnum, Enum, UseEnum
 from traitlets import CRegExp
-from traitlets import HasTraits, Union, validate, TraitType
+from traitlets import HasTraits, Union, TraitType, TraitError
+from traitlets import validate, default
 from traitlets import Dict, Tuple, Set, List
+
+from enum import Enum as Enum34
 import arrow
 
 #
@@ -48,6 +51,51 @@ class Account(object):
         else:
             return self.password
 
+class ProtocolEnum(Enum34):
+    ssh = 1
+    telnet = 2
+
+class TCPProto(HasTraits):
+    name = UseEnum(ProtocolEnum)
+    port = CInt()
+
+    ## Coerce values that were called without kwargs
+    def __init__(self, *args, **kwargs):
+        super(TCPProto, self).__init__(*args, **kwargs)
+        ## Handle the protocol name
+        try:
+            if args[0]:
+                self.name = args[0]
+        except IndexError:
+            pass
+
+        ## Handle the port
+        try:
+            if args[1]:
+                self.port = args[1]
+        except IndexError:
+            pass
+
+    @default('port')
+    def _default_port(self):
+        if self.name==ProtocolEnum.ssh:
+            return 22
+        elif self.name==ProtocolEnum.telnet:
+            return 23
+
+    @validate('port')
+    def _valid_port(self, proposal):
+        port = proposal['value']
+        if bool(1 <= port <= 65535):
+            return port
+        else:
+            raise TraitError('TCPProtocol port values must be between 1 and 65535.')
+
+    def __repr__(self):
+        return "<TCPProto {0}, port {1}>".format(self.name.name, self.port)
+
+    def __iter__(self):
+        yield self.name.name, self.port
 
 def CustomLogger(filename,
                  category="",
