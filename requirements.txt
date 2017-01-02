@@ -2,5 +2,6 @@ pexpect
 gtextfsm
 transitions
 arrow
+enum34
 traitlets
 colorama
