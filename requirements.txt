@@ -1,5 +1,6 @@
 pexpect
 gtextfsm
+netaddr
 transitions
 arrow
 enum34
