@@ -22,6 +22,10 @@ class InvalidMacError(Exception):
     def __init__(self, *args, **kwargs):
         super(InvalidMacError, self).__init__(*args, **kwargs)
 
-class InvalidIPv4Address(Exception):
+class InvalidIPv4AddressError(Exception):
     def __init__(self, *args, **kwargs):
-        super(InvalidIPv4Address, self).__init__(*args, **kwargs)
+        super(InvalidIPv4AddressError, self).__init__(*args, **kwargs)
+
+class InvalidVlanError(Exception):
+    def __init__(self, *args, **kwargs):
+        super(InvalidVlanError, self).__init__(*args, **kwargs)
