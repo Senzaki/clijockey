@@ -179,6 +179,19 @@ class CMacAddressCisco(TraitType):
             raise InvalidMacError('Cannot parse "{0}" into a valid mac address'.format(
                 str(value)))
 
+class CMacAddressCiscoStr(TraitType):
+    """Return a unicode Mac Address string formatted as a Cisco IOS Mac"""
+    default_value = EUI("0000.0000.0000")
+
+    def validate(self, obj, value):
+        try:
+            value = netaddr.EUI(value)
+            value.dialect = mac_cisco
+            return unicode(value)
+        except netaddr.core.AddrFormatError:
+            raise InvalidMacError('Cannot parse "{0}" into a valid mac address'.format(
+                str(value)))
+
 class CMacAddressUnixPadded(TraitType):
     """Return a netaddr.EUI Mac Address object cast as a zero-padded Unix Mac"""
     default_value = EUI("00:00:00:00:00:00")
@@ -191,6 +204,20 @@ class CMacAddressUnixPadded(TraitType):
         except netaddr.core.AddrFormatError:
             raise InvalidMacError('Cannot parse "{0}" into a valid mac address'.format(
                 str(value)))
+
+class CMacAddressUnixPaddedStr(TraitType):
+    """Return a unicode Mac Address string formatted as a Unix zero-padded Mac"""
+    default_value = EUI("00:00:00:00:00:00")
+
+    def validate(self, obj, value):
+        try:
+            value = netaddr.EUI(value)
+            value.dialect = mac_unix_expanded
+            return unicode(value)
+        except netaddr.core.AddrFormatError:
+            raise InvalidMacError('Cannot parse "{0}" into a valid mac address'.format(
+                str(value)))
+
 
 class CVlan(TraitType):
     """Return a Vlan cast as an Integer; default value is 0"""
