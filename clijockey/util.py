@@ -4,6 +4,9 @@ from abc import abstractmethod
 import logging
 import atexit
 import sys
+import re
+
+from error import InvalidMacError, InvalidIPv4Address
 
 from traitlets import CUnicode, CInt, CFloat, CLong, CBytes, CBool
 from traitlets import Unicode, Int, Float, Long, Bytes, Bool
@@ -12,6 +15,9 @@ from traitlets import CRegExp
 from traitlets import HasTraits, Union, TraitType, TraitError
 from traitlets import validate, default
 from traitlets import Dict, Tuple, Set, List
+
+from netaddr import EUI, mac_cisco, mac_unix_expanded
+import netaddr
 
 from enum import Enum as Enum34
 import arrow
@@ -283,3 +289,63 @@ class TraitTable(HasTraits):
         for attr_name, val in self._dict.items():
             yield attr_name, val
 
+class CIPv4AddressStr(TraitType): 
+    default_value = "127.0.0.1"
+
+    def validate(self, obj, value):
+        try:
+            assert isinstance(value, str) or isinstance(value, unicode)
+            addr_digits = [int(digit) for digit in value.split('.')]
+            assert len(addr_digits)==4
+            for digit in addr_digits:
+                assert 0 <= digit <= 255
+            return unicode(value)
+        except AssertionError:
+            raise InvalidIPv4Address('Cannot parse "{0}" into a valid IPv4 address'.format(
+                str(value)))
+
+class CIPv4PrefixStr(TraitType): 
+    default_value = "127.0.0.1/8"
+
+    def validate(self, obj, value):
+        try:
+            assert isinstance(value, str) or isinstance(value, unicode)
+            str_parts = value.split('/')
+            assert len(str_parts)==2
+            prefixlength = int(str_parts[1])
+            assert 0 <= prefixlength <= 32
+            addr_str = str_parts[0]
+            addr_digits = [int(digit) for digit in addr_str.split('.')]
+            assert len(addr_digits)==4
+            for digit in addr_digits:
+                assert 0 <= digit <= 255
+            return unicode(value)
+        except AssertionError:
+            raise InvalidIPv4Address('Cannot parse "{0}" into a valid IPv4 prefix'.format(
+                str(value)))
+
+class CMacAddressCisco(TraitType):
+    """Return a netaddr.EUI Mac Address object cast as a Cisco IOS Mac"""
+    default_value = EUI("00:00:00:00:00:00")
+
+    def validate(self, obj, value):
+        try:
+            value = netaddr.EUI(value)
+            value.dialect = mac_cisco
+            return value
+        except netaddr.core.AddrFormatError:
+            raise InvalidMacError('Cannot parse "{0}" into a valid mac address'.format(
+                str(value)))
+
+class CMacAddressUnixPadded(TraitType):
+    """Return a netaddr.EUI Mac Address object cast as a Padded Unix Mac"""
+    default_value = EUI("00:00:00:00:00:00")
+
+    def validate(self, obj, value):
+        try:
+            value = netaddr.EUI(value)
+            value.dialect = mac_unix_padded
+            return value
+        except netaddr.core.AddrFormatError:
+            raise InvalidMacError('Cannot parse "{0}" into a valid mac address'.format(
+                str(value)))
