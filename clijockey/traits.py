@@ -186,7 +186,7 @@ class CMacAddressUnixPadded(TraitType):
     def validate(self, obj, value):
         try:
             value = netaddr.EUI(value)
-            value.dialect = mac_unix_padded
+            value.dialect = mac_unix_expanded
             return value
         except netaddr.core.AddrFormatError:
             raise InvalidMacError('Cannot parse "{0}" into a valid mac address'.format(

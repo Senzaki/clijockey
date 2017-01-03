@@ -14,7 +14,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(name='clijockey',
-      version='0.1.2',
+      version='0.1.3',
       description='Automate ssh and telnet sessions to network devices',
       url='https://github.com/mpenning/clijockey/',
       author='David Michael Pennington',
