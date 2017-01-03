@@ -17,3 +17,11 @@ class ExecuteTimeout(Exception):
 class UnexpectedConnectionClose(Exception):
     def __init__(self, *args, **kwargs):
         super(UnexpectedConnectionClose, self).__init__(*args, **kwargs)
+
+class InvalidMacError(Exception):
+    def __init__(self, *args, **kwargs):
+        super(InvalidMacError, self).__init__(*args, **kwargs)
+
+class InvalidIPv4Address(Exception):
+    def __init__(self, *args, **kwargs):
+        super(InvalidIPv4Address, self).__init__(*args, **kwargs)
