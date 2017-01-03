@@ -21,6 +21,7 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
     from clijockey.lib import CLIMachine
     from clijockey.util import Account
     from clijockey.util import RotatingTOMLLog
+    from clijockey.util import CMacAddressCisco, CIPv4PrefixStr, CIPv4AddressStr
     from clijockey.util import TraitTable, CUnicode
 
     # TextFSM template...
