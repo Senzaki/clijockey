@@ -2,6 +2,7 @@ import sys
 import re
 
 from error import InvalidMacError, InvalidIPv4AddressError, InvalidVlanError
+from error import InvalidUnicodeRegexMatch
 
 from traitlets import CUnicode, CInt, CFloat, CLong, CBytes, CBool
 from traitlets import Unicode, Int, Float, Long, Bytes, Bool
@@ -109,6 +110,27 @@ class TraitTable(HasTraits):
         for attr_name, val in self._dict.items():
             yield attr_name, val
 
+class CUnicodeRegexMatch(TraitType): 
+    """Return a unicode string matching a user-defined regular expression"""
+    default_value = u""
+
+    def __init__(self, regex):
+        super(CUnicodeRegexMatch, self).__init__()
+        assert isinstance(regex, str) or isinstance(regex, unicode)
+        self.regex = regex
+        self.regex_compiled = re.compile(regex)
+
+    def validate(self, obj, value):
+        try:
+            assert isinstance(value, str) or isinstance(value, unicode)
+            if value=="":
+                return value
+            assert self.regex_compiled.search(value) or (value=="")
+            return unicode(value)
+        except AssertionError:
+            raise InvalidUnicodeRegexMatch('"{0}" does not match the regex: "{1}"'.format(
+                str(value), self.regex))
+
 class CIPv4AddressStr(TraitType): 
     default_value = "127.0.0.1"
 
@@ -141,7 +163,7 @@ class CIPv4PrefixStr(TraitType):
                 assert 0 <= digit <= 255
             return unicode(value)
         except AssertionError:
-            raise InvalidIPv4AddressError('Cannot parse "{0}" into a valid IPv4 prefix'.format(
+            raise InvalidIPv4AddressError('Cannot parse "{0}" into a valid IPv4 address and prefix'.format(
                 str(value)))
 
 class CMacAddressCisco(TraitType):
@@ -177,7 +199,7 @@ class CVlan(TraitType):
     def validate(self, obj, value):
         try:
             value = int(value)
-            assert (0 <= value <= 4094) # Includes default value
+            assert (0 <= value <= 4095) # Includes default value
             return value
         except AssertionError:
             raise InvalidVlanError('Cannot parse "{0}" into a valid Vlan'.format(
