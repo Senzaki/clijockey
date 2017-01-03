@@ -18,11 +18,11 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
 
     import time
 
-    from clijockey.lib import CLIMachine
-    from clijockey.util import Account
+    from clijockey.traits import CMacAddressCisco, CIPv4AddressStr
+    from clijockey.traits import TraitTable, CUnicode
     from clijockey.util import RotatingTOMLLog
-    from clijockey.util import CMacAddressCisco, CIPv4PrefixStr, CIPv4AddressStr
-    from clijockey.util import TraitTable, CUnicode
+    from clijockey.util import Account
+    from clijockey.lib import CLIMachine
 
     # TextFSM template...
     TEMPLATE = """Value INTF (\S+)\nValue IPADDR (\S+)\nValue STATUS (up|down|administratively down)\nValue PROTO (up|down)\n\nStart\n  ^${INTF}\s+${IPADDR}\s+\w+\s+\w+\s+${STATUS}\s+${PROTO} -> Record"""
