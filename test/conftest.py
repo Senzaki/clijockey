@@ -13,8 +13,9 @@ from clijockey.traits import TraitTable
 from clijockey.lib import CLIMachine
 from clijockey.util import Account
 
-from fixtures.devices.cisco_ios import TELNET_FAIL01
-from fixtures.session import Chain
+# To be used later
+#from fixtures.devices.cisco_ios import TELNET_FAIL01
+#from fixtures.session import Chain
 
 class TraitTable01(TraitTable):
     """TraitTable with a _map attribute"""
