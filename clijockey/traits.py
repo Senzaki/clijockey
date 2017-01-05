@@ -3,6 +3,7 @@ import re
 
 from error import InvalidMacError, InvalidIPv4AddressError, InvalidVlanError
 from error import InvalidUnicodeRegexMatch
+from error import TraitTableInvalidInput
 
 from traitlets import CUnicode, CInt, CFloat, CLong, CBytes, CBool
 from traitlets import Unicode, Int, Float, Long, Bytes, Bool
@@ -33,61 +34,63 @@ import arrow
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-
 ## TraitTable is useful for parsing from TextFSM or TOML logs
 class TraitTable(HasTraits):
-    ## WARNING: Do not use setattr() on HasTraits subclasses
     _map = Tuple()
     _dict = Dict()
 
     def __init__(self, *args, **kwargs):
+        """TraitTable(input, _map=())"""
         super(TraitTable, self).__init__()
 
         input_list = False
+        values = kwargs.get('input', None) or args[0]
+        assert (len(args) <= 2)   # We can't accept more than two args
+        if len(args)==2:
+            tmp_map = args[1]
+        else:
+            tmp_map = kwargs.get('_map', None) or getattr(kwargs, '_map', ())
+
         if len(args)==0 and getattr(kwargs, '_map', None) and getattr(kwargs, 'values', None):
-            # Inputs must be lists or tuples
+            raise RuntimeError, "Hit this if-clause: '{0}'".format(kwargs)
+            # Inputs must be lists or tuples, submitted with values kwarg...
             tmp_map = kwargs('_map')
             values = kwargs('values')
-            assert getattr(tmp_map, 'index')
-            assert getattr(values, 'index')
+            assert getattr(tmp_map, 'index')  # is it a list instance?
+            assert getattr(values, 'index')   # is it a list instance?
 
             input_list = True
 
-        elif (len(args)==1) and (len(kwargs)==0) and isinstance(args[0], dict):
+        elif isinstance(values, dict):
             # Input must be a dict...
-            assert getattr(args[0], 'keys')
             tmp_map = tuple(args[0].keys())
             values = [args[0][ii] for ii in tmp_map] # Remap values as list
 
             tmp_dict = args[0]
 
-        elif (len(args)==1) and (len(kwargs)==0) and isinstance(args[0], list):
+        elif isinstance(values, list) or isinstance(values, tuple):
             # Input must be a list or tuple...
+            try:
+                assert len(self._map)==len(values)
+            except AssertionError:
+                raise TraitTableInvalidInput("Length of inputs must be equal to the _map attribute")
             tmp_map = self._map
-            values = args[0]
-
-            input_list = True
-
-        elif (len(args)==1) and (len(kwargs)==1) and kwargs.get('values', None):
-            # Inputs must be lists or tuples
-            tmp_map = args[0]
-            values = kwargs.get('values')
-            assert getattr(args[0], 'index')
-            assert getattr(values, 'index')
+            #values = args[0]  <--- bug during simplification
 
             input_list = True
 
         elif len(args)==2:
             # Inputs must be lists or tuples
+            ## TODO Add unit test to ensure this isn't needed...
             assert getattr(args[0], 'index')
             assert getattr(args[1], 'index')
-            tmp_map = args[0]
-            values = args[1]
+            values = args[0]
+            tmp_map = args[1]
 
             input_list = True
 
         else:
-            raise ValueError
+            raise ValueError('values: "{0}"'.format(values))
 
         if input_list:
             tmp_dict = dict()

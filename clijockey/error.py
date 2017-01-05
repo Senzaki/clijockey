@@ -18,6 +18,12 @@ class UnexpectedConnectionClose(Exception):
     def __init__(self, *args, **kwargs):
         super(UnexpectedConnectionClose, self).__init__(*args, **kwargs)
 
+## TraitTable errors
+
+class TraitTableInvalidInput(Exception):
+    def __init__(self, *args, **kwargs):
+        super(TraitTableInvalidInput, self).__init__(*args, **kwargs)
+
 ## TraitType errors
 
 class InvalidVlanError(Exception):
