@@ -395,10 +395,10 @@ class CLIMachine(Machine):
         for account in self.credentials:
             yield account
 
-    def execute(self, line, timeout=-1, wait=0.0, regex="", template="", 
-        timeout_fail=False):
+    def execute(self, line, timeout=-1, wait=0.0, regex="", auto_endline=True,
+        template="", timeout_fail=False):
 
-        retval = list()
+        retval = list()  # Always return a list, even if no template is given
         fh = None
 
         if timeout < 0:
@@ -409,6 +409,7 @@ class CLIMachine(Machine):
         assert isinstance(timeout, int)
         assert isinstance(wait, float) or isinstance(wait, int)
         assert isinstance(regex, str)
+        assert isinstance(auto_endline, bool)
         assert isinstance(template, str)
         assert timeout > 0
         assert float(wait) >= 0.0
@@ -418,7 +419,10 @@ class CLIMachine(Machine):
             expect_prompts.append(regex)
 
         try:
-            self.child.sendline(line)
+            if auto_endline:
+                self.child.sendline(line)
+            else:
+                self.child.send(line)
             self.child.expect(expect_prompts, timeout)
             time.sleep(wait)
         except pexpect.TIMEOUT:
