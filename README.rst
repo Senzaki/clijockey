@@ -32,7 +32,8 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
         intf = CUnicode()  # See the traitlets documentation for CUnicode usage
         addr = CUnicode()
         status = CUnicode()
-        proto = CUnicode()
+        # Usage of CUnicodeRegexMatch illustrated below... it errors if no match
+        proto = CUnicodeRegexMatch(r'down|up')
         _map = ('intf', 'addr', 'status', 'proto') # TextFSM field order
 
     # Create a log named rviews_intfs, which automatically rotates at midnight
@@ -58,8 +59,8 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
     for ii in range(0, 5):
         intf_list = conn.execute('show ip int brief', template=TEMPLATE)
         for vals in intf_list:
-            ## NOTE: info must be a dictionary...
-            info = dict(Interfaces(vals))
+            ## NOTE: info must be a dictionary to be parsed by .write_table_list()
+            info = dict(Interfaces(vals))  # <---- This is the info table
             ## Write a timestamped list of tables named 'rview_intf' to the log
             log.write_table_list(table='rview_intf', info=info, timestamp=True)
         time.sleep(1)
@@ -70,9 +71,7 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
 Installation
 ------------
 
-Don't be fooled by the low version number, it works pretty well.
-
-Install with pip ::
+Install with pip (-U to auto-upgrade to the latest version) ::
 
     pip install -U clijockey
 
@@ -85,8 +84,9 @@ Because libraries like this should "just work" regardless of what you're screen 
 
 *Longer answer*:
 
-I have been writing network screen scraping scripts for two decades; over 
-time, I have accumulated some opinions about how things should be done.
+I have been writing network screen scraping scripts for fun and profit over the
+last two decades; in the process, I have accumulated some opinions about how 
+things should be done.
 
 As of this writing, there are several similar Python command / response 
 libraries... some even have a battery of vendor-specific plugins.  The obvious 
@@ -98,7 +98,7 @@ I hope not.
 1.  The popular Python libraries with vendor-specific CLI drivers are 
 pointlessly finicky and sometimes don't even work for all permutations from 
 that vendor.  All credit to the tireless souls who write and maintain them, but
-I'm tired of hacking around quirks in libraries; I just want to get work done.
+I'm tired of hacking around quirks in libraries; I just want to get things done.
 
 2.  Many of the existing libraries drive SSH sessions slowly because they use 
 paramiko_ (pure-python SSH)
@@ -120,7 +120,7 @@ Goals
 7.  Verbose error messages and debugs.
 8.  Support both telnet and ssh
 9.  Per-session TOML_ logging (partially implemented)
-10.  Python3 support (not implemented yet)
+10. Python3 support (not implemented yet)
 
 Restrictions
 ------------
