@@ -38,6 +38,6 @@ class InvalidIPv4AddressError(Exception):
     def __init__(self, *args, **kwargs):
         super(InvalidIPv4AddressError, self).__init__(*args, **kwargs)
 
-class InvalidUnicodeRegexMatch(Exception):
+class InvalidUnicodeRegex(Exception):
     def __init__(self, *args, **kwargs):
-        super(InvalidUnicodeRegexMatch, self).__init__(*args, **kwargs)
+        super(InvalidUnicodeRegex, self).__init__(*args, **kwargs)

@@ -2,7 +2,7 @@ import sys
 import re
 
 from error import InvalidMacError, InvalidIPv4AddressError, InvalidVlanError
-from error import InvalidUnicodeRegexMatch
+from error import InvalidUnicodeRegex
 from error import TraitTableInvalidInput
 
 from traitlets import CUnicode, CInt, CFloat, CLong, CBytes, CBool
@@ -113,12 +113,12 @@ class TraitTable(HasTraits):
         for attr_name, val in self._dict.items():
             yield attr_name, val
 
-class CUnicodeRegexMatch(TraitType): 
-    """Return a unicode string matching a user-defined regular expression"""
+class CUnicodeRegex(TraitType): 
+    """Return a unicode string which conforms to a regular expression"""
     default_value = u""
 
     def __init__(self, regex):
-        super(CUnicodeRegexMatch, self).__init__()
+        super(CUnicodeRegex, self).__init__()
         assert isinstance(regex, str) or isinstance(regex, unicode)
         self.regex = regex
         self.regex_compiled = re.compile(regex)
@@ -131,7 +131,7 @@ class CUnicodeRegexMatch(TraitType):
             assert self.regex_compiled.search(value) or (value=="")
             return unicode(value)
         except AssertionError:
-            raise InvalidUnicodeRegexMatch('"{0}" does not match the regex: "{1}"'.format(
+            raise InvalidUnicodeRegex('"{0}" does not match the regex: "{1}"'.format(
                 str(value), self.regex))
 
 class CIPv4AddressStr(TraitType): 

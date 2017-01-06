@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.abspath(THIS_DIR), "../../clijockey/"))
 sys.path.insert(0, os.path.abspath(THIS_DIR))
 
 from clijockey.traits import CIPv4AddressStr, CIPv4PrefixStr
-from clijockey.traits import CUnicodeRegexMatch
+from clijockey.traits import CUnicodeRegex
 from clijockey.traits import CUnicode
 from clijockey.traits import TraitTable
 from clijockey.lib import CLIMachine
@@ -20,7 +20,7 @@ from clijockey.util import Account
 class TraitTable01(TraitTable):
     """TraitTable with a _map attribute"""
     attr_unicode = CUnicode()
-    attr_unicode_regex_match = CUnicodeRegexMatch('(foo|FOO)')
+    attr_unicode_regex_match = CUnicodeRegex('(foo|FOO)')
     attr_ipv4prefix_str = CIPv4PrefixStr()
     attr_ipv4address_str = CIPv4AddressStr()
     _map = ('attr_unicode', 'attr_unicode_regex_match', 'attr_ipv4prefix_str',

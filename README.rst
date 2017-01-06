@@ -32,8 +32,8 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
         intf = CUnicode()  # See the traitlets documentation for CUnicode usage
         addr = CUnicode()
         status = CUnicode()
-        # Usage of CUnicodeRegexMatch illustrated below... it errors if no match
-        proto = CUnicodeRegexMatch(r'down|up')
+        # Usage of CUnicodeRegex illustrated below... it errors if no match
+        proto = CUnicodeRegex(r'down|up')
         _map = ('intf', 'addr', 'status', 'proto') # TextFSM field order
 
     # Create a log named rviews_intfs, which automatically rotates at midnight
