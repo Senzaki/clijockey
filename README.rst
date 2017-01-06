@@ -18,8 +18,8 @@ Essentially, this is a simple wrapper around pexpect_. Standard usage:
 
     import time
 
+    from clijockey.traits import TraitTable, CUnicode, CUnicodeRegex
     from clijockey.traits import CMacAddressCisco, CIPv4AddressStr
-    from clijockey.traits import TraitTable, CUnicode
     from clijockey.util import RotatingTOMLLog
     from clijockey.util import Account
     from clijockey.lib import CLIMachine
