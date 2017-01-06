@@ -14,7 +14,7 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(name='clijockey',
-      version='0.1.5',
+      version='0.1.6',
       description='Automate ssh and telnet sessions to network devices',
       url='https://github.com/mpenning/clijockey/',
       author='David Michael Pennington',
@@ -38,7 +38,7 @@ setup(name='clijockey',
           'Intended Audience :: System Administrators',
           'Intended Audience :: Information Technology',
           'Intended Audience :: Telecommunications Industry',
-          'License :: OSI Approved :: GNU General Public License (GPL)',
+          'License :: OSI Approved :: Apache Software License',
           'Natural Language :: English',
           'Operating System :: OS Independent',
           'Programming Language :: Python',
