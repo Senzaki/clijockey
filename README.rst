@@ -130,6 +130,12 @@ clijockey_ only supports `\*nix`_ (OpenSSH_ is required); no Windows support.
 Right now, I recommend Python_ 2.x; Python3 support is forthcoming, but a lower
 priority
 
+Thanks
+------
+
+I am extremely grateful to my employer (`Samsung Data Services`_) for allowing
+me to develop parts of this at work.
+
 
 .. _pexpect: http://https://pexpect.readthedocs.io/en/stable/
 
@@ -154,3 +160,5 @@ priority
 .. _`\*nix`: https://en.wikipedia.org/wiki/Unix-like
 
 .. _TOML: https://github.com/toml-lang/toml
+
+.. _`Samsung Data Services`: http://www.samsungsds.com/us/en/index.html

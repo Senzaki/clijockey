@@ -1,5 +1,6 @@
 #
 #   "David Michael Pennington" <mike@pennington.net>
+#   "Samsung Data Services"
 #   Copyright 2016-2017
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -228,7 +229,7 @@ class CLIMachine(Machine):
                 result = self.child.expect(['assword:', 'name:', 
                     r'[\n\r]\S+?>', r'[\n\r]\S+?#'], timeout=self.login_timeout)
             except pexpect.EOF:
-                raise UnexpectedConnectionClose
+                raise UnexpectedConnectionClose("Connection died while trying to connect to '{0}'".format(self.host))
 
             except pexpect.TIMEOUT:
                 raise ResponseFailException("CLIMachine did not anticipate this response '{0}'".format(self.response))
@@ -431,6 +432,8 @@ class CLIMachine(Machine):
                     line))
             else:
                 self._go_interact_timeout()
+        except pexpect.EOF:
+            raise UnexpectedConnectionClose("Connection died while executing".format(line))
 
         if template:
             if os.path.isfile(template):

@@ -20,6 +20,7 @@ import arrow
 
 #
 #   "David Michael Pennington" <mike@pennington.net>
+#   "Samsung Data Services"
 #   Copyright 2016-2017
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
