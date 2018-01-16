@@ -67,6 +67,7 @@ class CLIMachine(Machine):
         assert command_timeout > 0, "command_timeout must be a positive integer"
         assert login_timeout > 0, "login_timeout must be a positive integer"
 
+        self.hostname = None   # hostname populated by after_interact_cb()
         self.host = host
         self.credentials = credentials
         self.auto_priv_mode = auto_priv_mode
@@ -350,6 +351,9 @@ class CLIMachine(Machine):
         self.child.send(self.account.password+'\r')
         result = self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], 
             timeout=self.login_timeout)
+
+        
+
         if ((self.auto_priv_mode is False) and (result==0)):
             ## FIXME: Log info here that we bypassed enable...
             self._go_interact()
@@ -368,6 +372,12 @@ class CLIMachine(Machine):
         self._go_interact()
 
     def after_interact_cb(self):
+        # Populate self.hostname with a string
+        self.child.send('\r')  # Get ready to parse out the hostname
+        result = self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], 
+            timeout=self.login_timeout)
+        self.hostname = self.response.strip().replace('>', '').replace('#', '')
+
         if self.debug:
             _log.debug("INTERACT mode")
         pass
@@ -406,6 +416,7 @@ class CLIMachine(Machine):
             timeout = self.command_timeout
 
         assert (self.child is not None), "Cannot execute a command on a closed session"
+        assert self.hostname is not None
         assert isinstance(line, str) or isinstance(line, unicode)
         assert isinstance(timeout, int)
         assert isinstance(wait, float) or isinstance(wait, int)
@@ -415,7 +426,8 @@ class CLIMachine(Machine):
         assert timeout > 0
         assert float(wait) >= 0.0
 
-        expect_prompts = ['[\n\r]\S+?>', '[\n\r]\S+?#']
+        expect_prompts = ['[\n\r]{0}>'.format(self.hostname), 
+            '[\n\r]{0}#'.format(self.hostname)]
         if regex:
             expect_prompts.append(regex)
 
