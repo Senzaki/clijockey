@@ -379,8 +379,8 @@ class CLIMachine(Machine):
         result = self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], 
             timeout=self.login_timeout)
         self.hostname = self.response.strip().replace('>', '').replace('#', '')
-
         if self.debug:
+            _log.debug("Set hostname to '{0}'".format(self.hostname))
             _log.debug("INTERACT mode")
         pass
 
@@ -438,7 +438,11 @@ class CLIMachine(Machine):
                 self.child.sendline(line)
             else:
                 self.child.send(line)
+            if self.debug:
+                _log.debug("Waiting for prompts: '{0}'".format(expect_prompts))
             self.child.expect(expect_prompts, timeout)
+            if self.debug:
+                _log.debug("Matched prompt".format(expect_prompts))
             time.sleep(wait)
         except pexpect.TIMEOUT:
             if timeout_fail:
