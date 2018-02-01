@@ -117,6 +117,8 @@ class CLIMachine(Machine):
             'LOGIN_SUCCESS_NOPRIV', after='after_login_success_nopriv_cb')
         self.add_transition('_go_login_success_priv', 'SEND_CREDENTIALS', 
             'LOGIN_SUCCESS_PRIV', after='after_login_success_priv_cb')
+        self.add_transition('_go_interact', 'SEND_CREDENTIALS', 
+            'INTERACT', after='after_interact')
         self.add_transition('_go_login_success_priv', 'LOGIN_SUCCESS_NOPRIV', 
             'LOGIN_SUCCESS_PRIV', after='after_login_success_priv_cb')
         self.add_transition('_go_interact', 'LOGIN_SUCCESS_NOPRIV', 
