@@ -378,7 +378,7 @@ class CLIMachine(Machine):
         self.child.send('\r')  # Get ready to parse out the hostname
         result = self.child.expect(['[\n\r]\S+?>', '[\n\r]\S+?#'], 
             timeout=self.login_timeout)
-        self.hostname = self.response.strip().replace('>', '').replace('#', '')
+        self.hostname = re.escape(self.response.strip().replace('>', '').replace('#', ''))
         if self.debug:
             _log.debug("Set hostname to '{0}'".format(self.hostname))
             _log.debug("INTERACT mode")
