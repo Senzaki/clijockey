@@ -428,21 +428,27 @@ class CLIMachine(Machine):
         assert timeout > 0
         assert float(wait) >= 0.0
 
-        expect_prompts = ['[\n\r]\S*?{0}\S*?>'.format(self.hostname), 
-            '[\n\r]\S*?{0}\S*?#'.format(self.hostname)]
+        expect_prompts = ['[\n\r]{0}>'.format(self.hostname), 
+            '[\n\r]{0}#'.format(self.hostname)]
         if regex:
             expect_prompts.append(regex)
 
         try:
+            if self.debug:
+                _log.debug('sending: "{0}"'.format(line))
+
             if auto_endline:
                 self.child.sendline(line)
             else:
                 self.child.send(line)
             if self.debug:
-                _log.debug("Waiting for prompts: '{0}'".format(expect_prompts))
-            self.child.expect(expect_prompts, timeout)
+                _log.debug('Waiting for prompts: "{0}"'.format(expect_prompts))
+
+            result = self.child.expect(expect_prompts, timeout)
+
             if self.debug:
-                _log.debug("Matched prompt".format(expect_prompts))
+                _log.debug("Matched prompt {0}".format(result))
+
             time.sleep(wait)
         except pexpect.TIMEOUT:
             if timeout_fail:
