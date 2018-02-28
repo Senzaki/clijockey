@@ -428,8 +428,8 @@ class CLIMachine(Machine):
         assert timeout > 0
         assert float(wait) >= 0.0
 
-        expect_prompts = ['[\n\r]{0}>'.format(self.hostname), 
-            '[\n\r]{0}#'.format(self.hostname)]
+        expect_prompts = ['[\n\r]{0}\S+?>'.format(self.hostname), 
+            '[\n\r]{0}\S+?#'.format(self.hostname)]
         if regex:
             expect_prompts.append(regex)
 
