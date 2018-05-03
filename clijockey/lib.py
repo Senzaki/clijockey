@@ -457,7 +457,7 @@ class CLIMachine(Machine):
             else:
                 self._go_interact_timeout()
         except pexpect.EOF:
-            raise UnexpectedConnectionClose("Connection died while executing".format(line))
+            raise UnexpectedConnectionClose("Connection to {0} ({1}) died while executing '{2}'".format(self.host, self.hostname, line))
 
         if template:
             if os.path.isfile(template):
