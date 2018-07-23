@@ -36,7 +36,7 @@ import pexpect
 
 _log = logging.getLogger(__file__)
 _CLIJOCKEY_LOG_FORMAT_PREFIX_STR = (
-    Fore.WHITE + '[%(module)s %(funcName)s] %(asctime)s ')
+    Fore.WHITE + '\n[%(module)s %(funcName)s] %(asctime)s ')
 _CLIJOCKEY_LOG_FORMAT_MSG_STR = (Fore.GREEN + '%(msg)s' + Fore.RESET)
 _CLIJOCKEY_LOG_FORMAT_STR = _CLIJOCKEY_LOG_FORMAT_PREFIX_STR + _CLIJOCKEY_LOG_FORMAT_MSG_STR
 _clijockey_log_format = logging.Formatter(_CLIJOCKEY_LOG_FORMAT_STR, '%H:%M:%S')
@@ -435,19 +435,26 @@ class CLIMachine(Machine):
 
         try:
             if self.debug:
-                _log.debug('sending: "{0}"'.format(line))
+                _log.debug("sending: '{0}'".format(
+                    Fore.YELLOW + line + Fore.GREEN))
 
             if auto_endline:
                 self.child.sendline(line)
             else:
                 self.child.send(line)
             if self.debug:
-                _log.debug('Waiting for prompts: "{0}"'.format(expect_prompts))
+                dbgmsg = Fore.GREEN + "Waiting for prompts using list:\n"
+                for idx, ii in enumerate(expect_prompts):
+                    ## Using repr() below to make newlines printable...
+                    dbgmsg += Fore.MAGENTA + "  index {0}:  ".format(idx) + \
+                        Fore.YELLOW + repr(ii) + Fore.GREEN + os.linesep
+                _log.debug(dbgmsg)
 
             result = self.child.expect(expect_prompts, timeout)
 
             if self.debug:
-                _log.debug("Matched prompt {0}".format(result))
+                _log.debug("Matched prompt index: '{0}'".format(
+                    Fore.MAGENTA + str(result) + Fore.GREEN))
 
             time.sleep(wait)
         except pexpect.TIMEOUT:
@@ -457,7 +464,7 @@ class CLIMachine(Machine):
             else:
                 self._go_interact_timeout()
         except pexpect.EOF:
-            raise UnexpectedConnectionClose("Connection to {0} ({1}) died while executing '{2}'".format(self.host, self.hostname, line))
+            raise UnexpectedConnectionClose(Fore.RED + "Connection to {0} ({1}) died while executing '{2}'".format(self.host, self.hostname, line) + Fore.GREEN)
 
         if template:
             if os.path.isfile(template):
@@ -465,6 +472,9 @@ class CLIMachine(Machine):
             else:
                 fh = StringIO(template)
             fsm = TextFSM(fh)
+            if self.debug:
+                _log.debug("Sending to textfsm: '''{0}'''".format(
+                    Fore.YELLOW + self.response + Fore.GREEN))
             retval = fsm.ParseText(self.response)
             fh.close()
 
